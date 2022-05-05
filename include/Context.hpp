@@ -33,6 +33,10 @@ class Context
 private:
     VkInstance instance;
     VkDebugUtilsMessengerEXT debugMessenger;
+    VkPhysicalDevice physicalDevice;
+    uint32_t allOpQueueFamily;
+    VkQueue allOpQueue;
+    VkDevice logicalDevice;
 
     bool isDebugEnabled;
 
@@ -55,6 +59,8 @@ private:
     void createDebugContext(const VulkanContextCreateInfo& contextCreateInfo);
     void createReleaseContext(const VulkanContextCreateInfo& contextCreateInfo);
 
+    void findPhysicalDevice(VkPhysicalDevice& outPhysicalDevice, uint32_t& allOpFamilyQueue);
+    VkDevice createLogicalDevice();
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, 
                                                         VkDebugUtilsMessageTypeFlagsEXT messageType, 

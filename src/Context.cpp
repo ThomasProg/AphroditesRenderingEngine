@@ -53,6 +53,105 @@ void Context::createDebugContext(const VulkanContextCreateInfo& contextCreateInf
 
         throw std::runtime_error("Failed to create debug messenger!");
     }
+
+    findPhysicalDevice(physicalDevice, allOpQueueFamily);
+    if (physicalDevice == VK_NULL_HANDLE)
+    {
+        vkDestroyInstance(instance, nullptr);
+	    DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+
+        throw std::runtime_error("No physical device could be found!");
+    }
+
+    logicalDevice = createLogicalDevice();
+    if (logicalDevice == VK_NULL_HANDLE)
+    {
+        vkDestroyInstance(instance, nullptr);
+	    DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+
+        throw std::runtime_error("Failed to create logical device!");
+    }
+
+    vkGetDeviceQueue(logicalDevice, allOpQueueFamily, 0, &allOpQueue);
+}
+
+VkDevice Context::createLogicalDevice()
+{
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+
+    float queuePriority = 1.0f;
+    VkDeviceQueueCreateInfo queueCreateInfo{};
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex = allOpQueueFamily;
+    queueCreateInfo.queueCount = 1;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
+    queueCreateInfos.push_back(queueCreateInfo);
+
+    VkDeviceCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+
+    createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+    createInfo.pQueueCreateInfos = queueCreateInfos.data();
+
+    if (isDebugEnabled) 
+    {
+        std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
+
+        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+        createInfo.ppEnabledLayerNames = validationLayers.data();
+    } 
+    else 
+    {
+       createInfo.enabledLayerCount = 0;
+    }
+
+    VkDevice device;
+    if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) 
+    {
+        return VK_NULL_HANDLE;
+    }
+
+    return device;
+}
+
+
+void Context::findPhysicalDevice(VkPhysicalDevice& outPhysicalDevice, uint32_t& allOpFamilyQueue)
+{
+    uint32_t deviceCount = 0;
+    vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+
+    if (deviceCount == 0) 
+    {
+        // No gpu with vulkan support
+        outPhysicalDevice = VK_NULL_HANDLE;
+        return;
+    }
+
+    std::vector<VkPhysicalDevice> allPhysicalDevices(deviceCount);
+    vkEnumeratePhysicalDevices(instance, &deviceCount, allPhysicalDevices.data());
+
+    for (VkPhysicalDevice currentPhysicalDevice : allPhysicalDevices) 
+    {
+        uint32_t queueFamilyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(currentPhysicalDevice, &queueFamilyCount, nullptr);
+
+        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(currentPhysicalDevice, &queueFamilyCount, queueFamilies.data());
+
+        for (uint32_t queueFamilyID = 0; queueFamilyID < queueFamilies.size(); queueFamilyID++)
+        {
+            VkQueueFamilyProperties& queueFamily = queueFamilies[queueFamilyID]; 
+            if ((queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) && (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT)) 
+            {
+                allOpFamilyQueue = queueFamilyID;
+                outPhysicalDevice = currentPhysicalDevice;
+                return;
+            }
+        }
+    }
+
+    // No valid queue families available
+    outPhysicalDevice = VK_NULL_HANDLE;
 }
 
 VkDebugUtilsMessengerCreateInfoEXT Context::getDebugUtilsMessengerCreateInfo(const VulkanContextCreateInfo& contextCreateInfo)
@@ -96,6 +195,24 @@ void Context::createReleaseContext(const VulkanContextCreateInfo& contextCreateI
     {
         throw std::runtime_error("Instance could not be created.");
     }
+
+    findPhysicalDevice(physicalDevice, allOpQueueFamily);
+    if (physicalDevice == VK_NULL_HANDLE)
+    {
+        vkDestroyInstance(instance, nullptr);
+
+        throw std::runtime_error("No physical device could be found!");
+    }
+
+    logicalDevice = createLogicalDevice();
+    if (logicalDevice == VK_NULL_HANDLE)
+    {
+        vkDestroyInstance(instance, nullptr);
+
+        throw std::runtime_error("Failed to create logical device!");
+    }
+
+    vkGetDeviceQueue(logicalDevice, allOpQueueFamily, 0, &allOpQueue);
 }
 
 
