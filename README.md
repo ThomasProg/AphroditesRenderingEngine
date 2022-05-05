@@ -1,5 +1,7 @@
 # AphroditesRenderingEngine
 
+Le but de cette librairie est de pouvoir afficher des modèles 3D facilement à partir de Vulkan, avec différents effets et différentes pipelines de rendu.
+
 # Build :
 
 Pour build la librairie : 
